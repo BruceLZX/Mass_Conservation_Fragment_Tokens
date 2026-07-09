@@ -70,8 +70,8 @@ def deletion_insertion_auc(
         ins_scores.append(float(ins_prob.cpu()))
     xs = fractions.detach().cpu().numpy()
     return {
-        "deletion_auc": float(np.trapz(np.asarray(del_scores), xs)),
-        "insertion_auc": float(np.trapz(np.asarray(ins_scores), xs)),
+        "deletion_auc": float(np.trapezoid(np.asarray(del_scores), xs)),
+        "insertion_auc": float(np.trapezoid(np.asarray(ins_scores), xs)),
     }
 
 
@@ -79,4 +79,3 @@ def save_json(obj: dict, path: str | Path) -> None:
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(obj, indent=2, sort_keys=True))
-
