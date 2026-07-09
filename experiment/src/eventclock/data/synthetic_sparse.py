@@ -1,0 +1,75 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+import numpy as np
+import torch
+from torch.utils.data import Dataset
+
+
+@dataclass
+class SyntheticSpec:
+    n_samples: int = 2000
+    length: int = 256
+    channels: int = 1
+    n_classes: int = 2
+    motif_len: int = 24
+    noise_std: float = 0.4
+    motif_amp: float = 1.5
+    distractor_prob: float = 0.25
+    seed: int = 0
+
+
+class SyntheticSparseMotif(Dataset):
+    """Sparse motif classification with ground-truth evidence masks.
+
+    Class 1 contains a localized motif. Class 0 contains either no motif or a
+    weaker phase-shifted distractor, forcing evidence localization under low
+    token budgets instead of relying on global mean shifts.
+    """
+
+    def __init__(self, spec: SyntheticSpec, split: str = "train") -> None:
+        self.spec = spec
+        split_offsets = {"train": 0, "val": 10_000, "test": 20_000}
+        rng = np.random.default_rng(spec.seed + split_offsets.get(split, 30_000))
+        self.x = np.zeros((spec.n_samples, spec.channels, spec.length), dtype=np.float32)
+        self.y = np.zeros((spec.n_samples,), dtype=np.int64)
+        self.mask = np.zeros((spec.n_samples, spec.length), dtype=np.float32)
+
+        t = np.linspace(0, 1, spec.motif_len, dtype=np.float32)
+        motif_pos = np.sin(2 * np.pi * 3 * t) * np.hanning(spec.motif_len)
+        motif_neg = np.cos(2 * np.pi * 2 * t + 0.7) * np.hanning(spec.motif_len)
+
+        for i in range(spec.n_samples):
+            label = int(rng.integers(0, spec.n_classes))
+            signal = rng.normal(0, spec.noise_std, size=(spec.channels, spec.length)).astype(np.float32)
+            start = int(rng.integers(8, spec.length - spec.motif_len - 8))
+            if label == 1:
+                for c in range(spec.channels):
+                    scale = spec.motif_amp * (1.0 + 0.15 * c)
+                    signal[c, start : start + spec.motif_len] += scale * motif_pos
+                self.mask[i, start : start + spec.motif_len] = 1.0
+            elif rng.random() < spec.distractor_prob:
+                for c in range(spec.channels):
+                    signal[c, start : start + spec.motif_len] += 0.65 * spec.motif_amp * motif_neg
+            self.x[i] = signal
+            self.y[i] = label
+
+    def __len__(self) -> int:
+        return len(self.y)
+
+    def __getitem__(self, idx: int) -> dict[str, torch.Tensor]:
+        return {
+            "x": torch.from_numpy(self.x[idx]),
+            "y": torch.tensor(self.y[idx], dtype=torch.long),
+            "evidence_mask": torch.from_numpy(self.mask[idx]),
+        }
+
+
+def build_synthetic(cfg: dict, split: str) -> SyntheticSparseMotif:
+    split_cfg = dict(cfg)
+    if "splits" in cfg:
+        split_cfg["n_samples"] = cfg["splits"].get(split, cfg.get("n_samples", 2000))
+    split_cfg.pop("splits", None)
+    return SyntheticSparseMotif(SyntheticSpec(**split_cfg), split=split)
+
