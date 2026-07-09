@@ -16,11 +16,22 @@ def set_dotted(cfg: dict, dotted: str, value) -> None:
     cursor[parts[-1]] = value
 
 
+def flatten_grid(grid: dict, prefix: str = "") -> dict:
+    flat = {}
+    for key, value in grid.items():
+        dotted = f"{prefix}.{key}" if prefix else key
+        if isinstance(value, dict):
+            flat.update(flatten_grid(value, dotted))
+        else:
+            flat[dotted] = value
+    return flat
+
+
 def main() -> None:
     parser = build_arg_parser("Run config grid.")
     args = parser.parse_args()
     cfg = deep_update(load_config(args.config), parse_overrides(args.set))
-    grid = cfg.pop("grid", {})
+    grid = flatten_grid(cfg.pop("grid", {}))
     keys = list(grid)
     values = [grid[key] for key in keys]
     base_out = Path(cfg.get("output_dir", "experiment/outputs/grid"))
@@ -36,4 +47,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
