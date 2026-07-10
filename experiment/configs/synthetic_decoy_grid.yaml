@@ -25,10 +25,13 @@ dataset:
 model:
   name: event_clock
   dim: 64
-  k_tokens: 16
+  k_tokens: 32
+  uniform_tokens: 8
   scout_hidden: 48
   scout_depth: 2
   sigma: 0.04
+  uniform_anchor_sigma: 0.04
+  uniform_prior_mix: 0.5
   mask_quantile: 0.9
   mask_temperature_scale: 0.35
   depth: 2
@@ -54,7 +57,7 @@ train:
 eval:
   max_evidence_batches: 1
 grid:
-  seed: [0, 1, 2]
-  model.k_tokens: [8, 16, 32]
-  loss.lambda_suff_ce: [0.0, 0.5]
-  loss.lambda_nec_ce: [0.0, 0.2]
+  seed: [0, 1]
+  model.k_tokens: [16, 32]
+  model.uniform_tokens: [4, 8]
+  model.uniform_prior_mix: [0.25, 0.5]

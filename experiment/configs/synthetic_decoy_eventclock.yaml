@@ -25,10 +25,13 @@ dataset:
 model:
   name: event_clock
   dim: 64
-  k_tokens: 16
+  k_tokens: 32
+  uniform_tokens: 8
   scout_hidden: 48
   scout_depth: 2
   sigma: 0.04
+  uniform_anchor_sigma: 0.04
+  uniform_prior_mix: 0.5
   mask_quantile: 0.9
   mask_temperature_scale: 0.35
   depth: 2
