@@ -17,15 +17,21 @@ class SyntheticSpec:
     noise_std: float = 0.4
     motif_amp: float = 1.5
     distractor_prob: float = 0.25
+    discriminative_motif_all_classes: bool = False
+    decoy_prob: float = 0.0
+    decoy_len: int = 48
+    decoy_amp: float = 2.0
+    decoy_cycles: int = 9
     seed: int = 0
 
 
 class SyntheticSparseMotif(Dataset):
     """Sparse motif classification with ground-truth evidence masks.
 
-    Class 1 contains a localized motif. Class 0 contains either no motif or a
-    weaker phase-shifted distractor, forcing evidence localization under low
-    token budgets instead of relying on global mean shifts.
+    Class 1 contains a localized motif. Optionally, both classes contain
+    class-specific motifs, and every sample can contain a label-independent
+    high-complexity decoy region. The decoy makes local-complexity routing a
+    deliberately bad shortcut for evidence localization.
     """
 
     def __init__(self, spec: SyntheticSpec, split: str = "train") -> None:
@@ -35,10 +41,13 @@ class SyntheticSparseMotif(Dataset):
         self.x = np.zeros((spec.n_samples, spec.channels, spec.length), dtype=np.float32)
         self.y = np.zeros((spec.n_samples,), dtype=np.int64)
         self.mask = np.zeros((spec.n_samples, spec.length), dtype=np.float32)
+        self.decoy_mask = np.zeros((spec.n_samples, spec.length), dtype=np.float32)
 
         t = np.linspace(0, 1, spec.motif_len, dtype=np.float32)
         motif_pos = np.sin(2 * np.pi * 3 * t) * np.hanning(spec.motif_len)
         motif_neg = np.cos(2 * np.pi * 2 * t + 0.7) * np.hanning(spec.motif_len)
+        td = np.linspace(0, 1, spec.decoy_len, dtype=np.float32)
+        decoy_wave = np.sign(np.sin(2 * np.pi * spec.decoy_cycles * td)) * np.hanning(spec.decoy_len)
 
         for i in range(spec.n_samples):
             label = int(rng.integers(0, spec.n_classes))
@@ -49,9 +58,28 @@ class SyntheticSparseMotif(Dataset):
                     scale = spec.motif_amp * (1.0 + 0.15 * c)
                     signal[c, start : start + spec.motif_len] += scale * motif_pos
                 self.mask[i, start : start + spec.motif_len] = 1.0
+            elif spec.discriminative_motif_all_classes:
+                for c in range(spec.channels):
+                    scale = spec.motif_amp * (1.0 + 0.15 * c)
+                    signal[c, start : start + spec.motif_len] += scale * motif_neg
+                self.mask[i, start : start + spec.motif_len] = 1.0
             elif rng.random() < spec.distractor_prob:
                 for c in range(spec.channels):
                     signal[c, start : start + spec.motif_len] += 0.65 * spec.motif_amp * motif_neg
+            if spec.decoy_prob > 0 and rng.random() < spec.decoy_prob:
+                decoy_start = _sample_nonoverlapping_start(
+                    rng,
+                    spec.length,
+                    spec.decoy_len,
+                    avoid_start=start,
+                    avoid_len=spec.motif_len,
+                    margin=4,
+                )
+                jitter = rng.normal(0, 0.15, size=spec.decoy_len).astype(np.float32)
+                for c in range(spec.channels):
+                    scale = spec.decoy_amp * (1.0 + 0.1 * c)
+                    signal[c, decoy_start : decoy_start + spec.decoy_len] += scale * (decoy_wave + jitter)
+                self.decoy_mask[i, decoy_start : decoy_start + spec.decoy_len] = 1.0
             self.x[i] = signal
             self.y[i] = label
 
@@ -63,6 +91,7 @@ class SyntheticSparseMotif(Dataset):
             "x": torch.from_numpy(self.x[idx]),
             "y": torch.tensor(self.y[idx], dtype=torch.long),
             "evidence_mask": torch.from_numpy(self.mask[idx]),
+            "decoy_mask": torch.from_numpy(self.decoy_mask[idx]),
         }
 
 
@@ -73,3 +102,21 @@ def build_synthetic(cfg: dict, split: str) -> SyntheticSparseMotif:
     split_cfg.pop("splits", None)
     return SyntheticSparseMotif(SyntheticSpec(**split_cfg), split=split)
 
+
+def _sample_nonoverlapping_start(
+    rng: np.random.Generator,
+    length: int,
+    span: int,
+    avoid_start: int,
+    avoid_len: int,
+    margin: int,
+) -> int:
+    candidates = []
+    avoid_end = avoid_start + avoid_len
+    for start in range(8, length - span - 8):
+        end = start + span
+        if end + margin < avoid_start or start - margin > avoid_end:
+            candidates.append(start)
+    if not candidates:
+        return int(rng.integers(8, length - span - 8))
+    return int(rng.choice(candidates))

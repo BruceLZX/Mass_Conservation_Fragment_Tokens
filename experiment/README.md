@@ -5,6 +5,7 @@ This folder contains the experiment scaffold for **Evidence-Calibrated EventCloc
 ## What Is Covered
 
 - Synthetic sparse-motif sanity check with ground-truth evidence masks.
+- Synthetic decoy benchmark where label-independent high-complexity distractors test whether the clock follows task evidence instead of local complexity.
 - Main model: EventClock Transformer.
 - Baselines: CNN, fixed-patch Transformer, random token selection, and local-complexity token selection.
 - Reviewer-facing checks: token-budget sweeps, fixed-patch sweep, ablations for sufficiency/necessity, deletion/insertion evidence curves, clock-mask overlap, seed sweeps, and robustness perturbations.
@@ -43,6 +44,26 @@ PYTHONPATH=experiment/src python3 -m eventclock.run_grid --config experiment/con
 PYTHONPATH=experiment/src python3 -m eventclock.run_grid --config experiment/configs/synthetic_token_baseline_grid.yaml
 PYTHONPATH=experiment/src python3 -m eventclock.run_grid --config experiment/configs/synthetic_cnn_grid.yaml
 ```
+
+## Evidence-Decoy Benchmark
+
+Use this benchmark for the actual research claim. Classification alone is not enough here; the important question is whether event-time density avoids label-independent high-complexity decoys and concentrates on the discriminative motif.
+
+```bash
+PYTHONPATH=experiment/src python3 -m eventclock.train --config experiment/configs/synthetic_decoy_eventclock.yaml
+PYTHONPATH=experiment/src python3 -m eventclock.run_grid --config experiment/configs/synthetic_decoy_grid.yaml
+PYTHONPATH=experiment/src python3 -m eventclock.run_grid --config experiment/configs/synthetic_decoy_fixed_patch_grid.yaml
+PYTHONPATH=experiment/src python3 -m eventclock.run_grid --config experiment/configs/synthetic_decoy_token_baseline_grid.yaml
+```
+
+Primary evidence metrics:
+
+- `importance_evidence_mass`: fraction of clock density on the true evidence region.
+- `importance_decoy_mass`: fraction of clock density on the label-independent decoy.
+- `importance_evidence_lift`: evidence mass divided by evidence time fraction.
+- `importance_decoy_lift`: decoy mass divided by decoy time fraction.
+- `importance_evidence_minus_decoy`: should be positive for a useful evidence clock.
+- `importance_top_iou`: top-density positions against the motif mask.
 
 Summarize runs:
 
@@ -93,6 +114,7 @@ experiment/scripts/run_dataset.sh experiment/configs/ptbxl_npz_eventclock.yaml
 
 - “Is this just adaptive patching?” Compare `event_clock` against `complexity_token` and tuned `fixed_patch`.
 - “Does local density correspond to evidence?” Report deletion/insertion AUC and synthetic mask IoU.
+- “Is it merely a local-complexity detector?” Use the decoy benchmark and require evidence lift to exceed decoy lift.
 - “Is the fixed patch baseline tuned?” Use `synthetic_baseline_grid.yaml` and patch-size sweeps on each real dataset.
 - “Are gains robust?” Use `robustness_eval` blocks for noise, shift, masking, channel dropout, and amplitude scaling.
 - “Is the effect stable?” Use `seed` grid values and summarize mean/std across runs.

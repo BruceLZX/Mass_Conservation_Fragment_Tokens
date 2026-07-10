@@ -39,17 +39,22 @@ class NPZSignalDataset(Dataset):
             keep = np.asarray(data["split"]).astype(str) == split
             x, y = x[keep], y[keep]
             mask = data["evidence_mask"][keep].astype(np.float32) if "evidence_mask" in data else None
+            decoy_mask = data["decoy_mask"][keep].astype(np.float32) if "decoy_mask" in data else None
         else:
             idx = _deterministic_split_indices(len(y), split)
             x, y = x[idx], y[idx]
             mask = data["evidence_mask"][idx].astype(np.float32) if "evidence_mask" in data else None
+            decoy_mask = data["decoy_mask"][idx].astype(np.float32) if "decoy_mask" in data else None
         if len(y) == 0:
             raise ValueError(f"No samples found for split {split!r} in {path}.")
         if mask is not None and mask.shape != (len(y), x.shape[-1]):
             raise ValueError(f"Expected evidence_mask shape {(len(y), x.shape[-1])}, got {mask.shape}.")
+        if decoy_mask is not None and decoy_mask.shape != (len(y), x.shape[-1]):
+            raise ValueError(f"Expected decoy_mask shape {(len(y), x.shape[-1])}, got {decoy_mask.shape}.")
         self.x = x
         self.y = y
         self.mask = mask
+        self.decoy_mask = decoy_mask
 
     def __len__(self) -> int:
         return len(self.y)
@@ -58,6 +63,8 @@ class NPZSignalDataset(Dataset):
         item = {"x": torch.from_numpy(self.x[idx]), "y": torch.tensor(self.y[idx], dtype=torch.long)}
         if self.mask is not None:
             item["evidence_mask"] = torch.from_numpy(self.mask[idx])
+        if self.decoy_mask is not None:
+            item["decoy_mask"] = torch.from_numpy(self.decoy_mask[idx])
         return item
 
 

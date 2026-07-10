@@ -42,6 +42,45 @@ def mask_overlap(pred_mask: torch.Tensor, true_mask: torch.Tensor | None) -> dic
     }
 
 
+def importance_localization(
+    importance: torch.Tensor,
+    evidence_mask: torch.Tensor | None,
+    decoy_mask: torch.Tensor | None = None,
+) -> dict[str, float]:
+    if evidence_mask is None:
+        return {}
+    imp = importance.detach().cpu().float().clamp_min(0)
+    evidence = (evidence_mask.detach().cpu().float() > 0.5).float()
+    decoy = (decoy_mask.detach().cpu().float() > 0.5).float() if decoy_mask is not None else torch.zeros_like(evidence)
+    prob = imp / imp.sum(dim=-1, keepdim=True).clamp_min(1e-8)
+
+    evidence_mass = (prob * evidence).sum(dim=-1)
+    decoy_mass = (prob * decoy).sum(dim=-1)
+    evidence_fraction = evidence.mean(dim=-1).clamp_min(1e-8)
+    decoy_fraction = decoy.mean(dim=-1).clamp_min(1e-8)
+    top = torch.zeros_like(evidence)
+    for i in range(imp.shape[0]):
+        k = max(1, int(evidence[i].sum().item()))
+        idx = torch.topk(imp[i], k=min(k, imp.shape[-1])).indices
+        top[i, idx] = 1.0
+    inter = (top * evidence).sum(dim=-1)
+    union = ((top + evidence) > 0).float().sum(dim=-1).clamp_min(1)
+    precision = inter / top.sum(dim=-1).clamp_min(1)
+    recall = inter / evidence.sum(dim=-1).clamp_min(1)
+    top_decoy = (top * decoy).sum(dim=-1) / top.sum(dim=-1).clamp_min(1)
+    return {
+        "importance_evidence_mass": float(evidence_mass.mean()),
+        "importance_decoy_mass": float(decoy_mass.mean()),
+        "importance_evidence_lift": float((evidence_mass / evidence_fraction).mean()),
+        "importance_decoy_lift": float((decoy_mass / decoy_fraction).mean()),
+        "importance_evidence_minus_decoy": float((evidence_mass - decoy_mass).mean()),
+        "importance_top_iou": float((inter / union).mean()),
+        "importance_top_precision": float(precision.mean()),
+        "importance_top_recall": float(recall.mean()),
+        "importance_top_decoy_fraction": float(top_decoy.mean()),
+    }
+
+
 @torch.no_grad()
 def deletion_insertion_auc(
     model: torch.nn.Module,

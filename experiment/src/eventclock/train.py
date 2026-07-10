@@ -9,7 +9,7 @@ from eventclock.config import build_arg_parser, deep_update, load_config, parse_
 from eventclock.data import build_loader
 from eventclock.data.robustness import apply_robustness
 from eventclock.losses import total_loss
-from eventclock.metrics import classification_metrics, deletion_insertion_auc, mask_overlap, save_json
+from eventclock.metrics import classification_metrics, deletion_insertion_auc, importance_localization, mask_overlap, save_json
 from eventclock.models import build_model
 from eventclock.seed import seed_everything
 
@@ -69,6 +69,8 @@ def evaluate(model, loader, device, cfg: dict, robustness: dict | None = None) -
         y_all.append(batch["y"].detach().cpu())
         if robustness is None and "mask" in out and "evidence_mask" in batch:
             overlap_values.append(mask_overlap(out["mask"], batch["evidence_mask"]))
+        if robustness is None and "velocity" in out and "evidence_mask" in batch:
+            overlap_values.append(importance_localization(out["velocity"], batch["evidence_mask"], batch.get("decoy_mask")))
         if "velocity" in out and bi < max_evidence_batches:
             evidence_values.append(deletion_insertion_auc(model, x, batch["y"], out["velocity"]))
     logits = torch.cat(logits_all)

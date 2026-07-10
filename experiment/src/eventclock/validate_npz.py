@@ -49,7 +49,15 @@ def main() -> None:
     else:
         print("evidence_mask=absent")
 
+    if "decoy_mask" in data:
+        mask = data["decoy_mask"]
+        expected = (len(y), length)
+        if mask.shape != expected:
+            raise ValueError(f"decoy_mask must have shape {expected}, got {mask.shape}")
+        print("decoy_mask=present")
+    else:
+        print("decoy_mask=absent")
+
 
 if __name__ == "__main__":
     main()
-
