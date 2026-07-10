@@ -108,6 +108,30 @@ def nuisance_intervention_losses(
     return {"nuisance_consistency": consistency, "nuisance_ce": ce, "nuisance_decoy": decoy_mass}
 
 
+def saliency_alignment_loss(
+    velocity: torch.Tensor | None,
+    x: torch.Tensor,
+    logits: torch.Tensor,
+    y: torch.Tensor,
+    blur: int = 7,
+) -> torch.Tensor:
+    if velocity is None or not x.requires_grad:
+        return logits.new_tensor(0.0)
+    selected = logits.gather(1, y.view(-1, 1)).sum()
+    grad = torch.autograd.grad(selected, x, retain_graph=True, create_graph=False, allow_unused=True)[0]
+    if grad is None:
+        return logits.new_tensor(0.0)
+    saliency = grad.detach().abs().mean(dim=1)
+    if blur > 1:
+        pad = blur // 2
+        saliency = F.avg_pool1d(saliency.unsqueeze(1), kernel_size=blur, stride=1, padding=pad).squeeze(1)
+        saliency = saliency[..., : velocity.shape[-1]]
+    target = saliency + 1e-8
+    target = target / target.sum(dim=-1, keepdim=True).clamp_min(1e-8)
+    prob = velocity / velocity.sum(dim=-1, keepdim=True).clamp_min(1e-8)
+    return -(target * torch.log(prob.clamp_min(1e-8))).sum(dim=-1).mean()
+
+
 def total_loss(
     model: torch.nn.Module,
     batch: dict[str, torch.Tensor],
@@ -174,6 +198,16 @@ def total_loss(
         values["nuisance_consistency"] = float(ni["nuisance_consistency"].detach().cpu())
         values["nuisance_ce"] = float(ni["nuisance_ce"].detach().cpu())
         values["nuisance_decoy"] = float(ni["nuisance_decoy"].detach().cpu())
+    if coeffs.get("lambda_saliency_clock", 0) > 0:
+        saliency = saliency_alignment_loss(
+            velocity,
+            batch["x"],
+            logits,
+            y,
+            blur=int(coeffs.get("saliency_blur", 7)),
+        ).to(logits.device)
+        loss = loss + float(coeffs.get("lambda_saliency_clock", 0)) * saliency
+        values["saliency_clock"] = float(saliency.detach().cpu())
     if (
         coeffs.get("lambda_oracle_evidence", 0) > 0
         or coeffs.get("lambda_oracle_decoy", 0) > 0

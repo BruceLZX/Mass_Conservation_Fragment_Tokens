@@ -43,12 +43,14 @@ loss:
   lambda_nec: 0.05
   lambda_suff_ce: 0.5
   lambda_nec_ce: 0.2
-  lambda_nuisance_consistency: 0.2
-  lambda_nuisance_ce: 0.5
-  lambda_nuisance_decoy: 2.0
+  lambda_nuisance_consistency: 0.1
+  lambda_nuisance_ce: 0.2
+  lambda_nuisance_decoy: 0.5
   nuisance_span: 56
   nuisance_amp: 2.5
   nuisance_cycles: 11
+  lambda_saliency_clock: 0.5
+  saliency_blur: 9
   lambda_smooth: 0.02
   lambda_entropy: 0.001
   gamma: 0.6
@@ -68,4 +70,5 @@ grid:
   model.k_tokens: [16, 32]
   model.coverage_patch_size: [8, 16]
   model.uniform_prior_mix: [0.0, 0.15]
-  loss.lambda_nuisance_decoy: [1.0, 2.0]
+  loss.lambda_nuisance_decoy: [0.25, 0.5]
+  loss.lambda_saliency_clock: [0.2, 0.5]

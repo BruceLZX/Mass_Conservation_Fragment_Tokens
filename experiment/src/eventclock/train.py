@@ -41,6 +41,8 @@ def train_one_epoch(model, loader, optimizer, device, cfg: dict) -> dict[str, fl
     for batch in loader:
         batch = _move(batch, device)
         batch["x"] = apply_robustness(batch["x"], cfg.get("robustness_train"))
+        if cfg.get("loss", {}).get("lambda_saliency_clock", 0) > 0:
+            batch["x"].requires_grad_(True)
         optimizer.zero_grad(set_to_none=True)
         output = model(batch["x"])
         loss, values = total_loss(model, batch, output, cfg)
