@@ -27,20 +27,43 @@ def entropy_loss(velocity: torch.Tensor | None) -> torch.Tensor:
 def evidence_losses(
     model: torch.nn.Module,
     x: torch.Tensor,
+    y: torch.Tensor,
     logits: torch.Tensor,
     mask: torch.Tensor | None,
     gamma: float = 0.5,
+    ce_margin: float = 1.0,
 ) -> dict[str, torch.Tensor]:
     if mask is None:
         zero = logits.new_tensor(0.0)
-        return {"suff": zero, "nec": zero}
+        return {"suff": zero, "nec": zero, "suff_ce": zero, "nec_ce": zero}
     mask = mask.unsqueeze(1)
     suff_logits = model(x * mask)["logits"]
     nec_logits = model(x * (1.0 - mask))["logits"]
     suff = kl_divergence_from_logits(logits, suff_logits)
     nec_div = kl_divergence_from_logits(logits, nec_logits)
     nec = torch.relu(logits.new_tensor(gamma) - nec_div)
-    return {"suff": suff, "nec": nec}
+    suff_ce = F.cross_entropy(suff_logits, y)
+    inverse_ce = F.cross_entropy(nec_logits, y)
+    nec_ce = torch.relu(logits.new_tensor(ce_margin) - inverse_ce)
+    return {"suff": suff, "nec": nec, "suff_ce": suff_ce, "nec_ce": nec_ce}
+
+
+def oracle_localization_loss(
+    velocity: torch.Tensor | None,
+    evidence_mask: torch.Tensor | None,
+    decoy_mask: torch.Tensor | None = None,
+) -> dict[str, torch.Tensor]:
+    if velocity is None or evidence_mask is None:
+        zero = torch.tensor(0.0)
+        return {"oracle_evidence": zero, "oracle_decoy": zero}
+    evidence = (evidence_mask.to(velocity.device).float() > 0.5).float()
+    decoy = (decoy_mask.to(velocity.device).float() > 0.5).float() if decoy_mask is not None else torch.zeros_like(evidence)
+    prob = velocity / velocity.sum(dim=-1, keepdim=True).clamp_min(1e-8)
+    evidence_mass = (prob * evidence).sum(dim=-1)
+    decoy_mass = (prob * decoy).sum(dim=-1)
+    evidence_loss = -torch.log(evidence_mass.clamp_min(1e-8)).mean()
+    decoy_loss = decoy_mass.mean()
+    return {"oracle_evidence": evidence_loss, "oracle_decoy": decoy_loss}
 
 
 def total_loss(
@@ -66,12 +89,38 @@ def total_loss(
         loss = loss + float(coeffs["lambda_entropy"]) * ent
         values["entropy"] = float(ent.detach().cpu())
 
-    if (coeffs.get("lambda_suff", 0) > 0 or coeffs.get("lambda_nec", 0) > 0) and "mask" in output:
-        ev = evidence_losses(model, batch["x"], logits, output.get("mask"), gamma=float(coeffs.get("gamma", 0.5)))
+    if (
+        coeffs.get("lambda_suff", 0) > 0
+        or coeffs.get("lambda_nec", 0) > 0
+        or coeffs.get("lambda_suff_ce", 0) > 0
+        or coeffs.get("lambda_nec_ce", 0) > 0
+    ) and "mask" in output:
+        ev = evidence_losses(
+            model,
+            batch["x"],
+            y,
+            logits,
+            output.get("mask"),
+            gamma=float(coeffs.get("gamma", 0.5)),
+            ce_margin=float(coeffs.get("ce_margin", 1.0)),
+        )
         loss = loss + float(coeffs.get("lambda_suff", 0)) * ev["suff"]
         loss = loss + float(coeffs.get("lambda_nec", 0)) * ev["nec"]
+        loss = loss + float(coeffs.get("lambda_suff_ce", 0)) * ev["suff_ce"]
+        loss = loss + float(coeffs.get("lambda_nec_ce", 0)) * ev["nec_ce"]
         values["suff"] = float(ev["suff"].detach().cpu())
         values["nec"] = float(ev["nec"].detach().cpu())
+        values["suff_ce"] = float(ev["suff_ce"].detach().cpu())
+        values["nec_ce"] = float(ev["nec_ce"].detach().cpu())
+    if (
+        coeffs.get("lambda_oracle_evidence", 0) > 0
+        or coeffs.get("lambda_oracle_decoy", 0) > 0
+    ) and "evidence_mask" in batch:
+        loc = oracle_localization_loss(velocity, batch["evidence_mask"], batch.get("decoy_mask"))
+        loc = {key: value.to(logits.device) for key, value in loc.items()}
+        loss = loss + float(coeffs.get("lambda_oracle_evidence", 0)) * loc["oracle_evidence"]
+        loss = loss + float(coeffs.get("lambda_oracle_decoy", 0)) * loc["oracle_decoy"]
+        values["oracle_evidence"] = float(loc["oracle_evidence"].detach().cpu())
+        values["oracle_decoy"] = float(loc["oracle_decoy"].detach().cpu())
     values["total"] = float(loss.detach().cpu())
     return loss, values
-

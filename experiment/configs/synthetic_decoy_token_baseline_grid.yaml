@@ -25,7 +25,7 @@ dataset:
 model:
   name: random_token
   dim: 64
-  k_tokens: 8
+  k_tokens: 16
   depth: 2
   heads: 4
   dropout: 0.1
@@ -43,4 +43,4 @@ eval:
 grid:
   seed: [0, 1, 2]
   model.name: [random_token, complexity_token]
-  model.k_tokens: [4, 8, 16]
+  model.k_tokens: [8, 16, 32]

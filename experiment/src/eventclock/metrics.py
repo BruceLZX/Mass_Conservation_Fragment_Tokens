@@ -73,6 +73,7 @@ def importance_localization(
         "importance_decoy_mass": float(decoy_mass.mean()),
         "importance_evidence_lift": float((evidence_mass / evidence_fraction).mean()),
         "importance_decoy_lift": float((decoy_mass / decoy_fraction).mean()),
+        "importance_lift_gap": float(((evidence_mass / evidence_fraction) - (decoy_mass / decoy_fraction)).mean()),
         "importance_evidence_minus_decoy": float((evidence_mass - decoy_mass).mean()),
         "importance_top_iou": float((inter / union).mean()),
         "importance_top_precision": float(precision.mean()),

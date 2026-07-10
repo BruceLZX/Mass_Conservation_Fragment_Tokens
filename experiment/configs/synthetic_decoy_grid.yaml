@@ -25,7 +25,7 @@ dataset:
 model:
   name: event_clock
   dim: 64
-  k_tokens: 8
+  k_tokens: 16
   scout_hidden: 48
   scout_depth: 2
   sigma: 0.04
@@ -35,11 +35,14 @@ model:
   heads: 4
   dropout: 0.1
 loss:
-  lambda_suff: 0.2
-  lambda_nec: 0.2
+  lambda_suff: 0.05
+  lambda_nec: 0.05
+  lambda_suff_ce: 0.5
+  lambda_nec_ce: 0.2
   lambda_smooth: 0.02
   lambda_entropy: 0.001
   gamma: 0.6
+  ce_margin: 1.2
 train:
   epochs: 6
   batch_size: 64
@@ -47,12 +50,11 @@ train:
   lr: 0.001
   weight_decay: 0.0001
   grad_clip: 1.0
-  monitor: importance_evidence_minus_decoy
+  monitor: macro_f1
 eval:
   max_evidence_batches: 1
 grid:
   seed: [0, 1, 2]
-  model.k_tokens: [4, 8, 16]
-  loss.lambda_suff: [0.0, 0.2]
-  loss.lambda_nec: [0.0, 0.2]
-
+  model.k_tokens: [8, 16, 32]
+  loss.lambda_suff_ce: [0.0, 0.5]
+  loss.lambda_nec_ce: [0.0, 0.2]
