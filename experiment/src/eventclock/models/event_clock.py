@@ -145,6 +145,8 @@ class EventClockTransformer(nn.Module):
         depth: int = 2,
         heads: int = 4,
         dropout: float = 0.1,
+        coverage_patch_size: int = 0,
+        coverage_stride: int | None = None,
     ) -> None:
         super().__init__()
         self.tokenizer = EventClockTokenizer(
@@ -160,10 +162,17 @@ class EventClockTransformer(nn.Module):
             mask_quantile=mask_quantile,
             mask_temperature_scale=mask_temperature_scale,
         )
+        self.coverage_patch = None
+        if coverage_patch_size > 0:
+            stride = coverage_stride or coverage_patch_size
+            self.coverage_patch = nn.Conv1d(channels, dim, kernel_size=coverage_patch_size, stride=stride)
         self.classifier = TinyTransformerClassifier(dim, n_classes, depth=depth, heads=heads, dropout=dropout)
 
     def forward(self, x: torch.Tensor) -> dict[str, torch.Tensor]:
         tokens, aux = self.tokenizer(x)
+        if self.coverage_patch is not None:
+            coverage_tokens = self.coverage_patch(x).transpose(1, 2)
+            tokens = torch.cat([tokens, coverage_tokens], dim=1)
         logits = self.classifier(tokens)
         aux["tokens"] = tokens
         aux["logits"] = logits

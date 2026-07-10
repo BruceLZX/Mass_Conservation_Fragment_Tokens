@@ -80,6 +80,11 @@ def evaluate(model, loader, device, cfg: dict, robustness: dict | None = None) -
         if values:
             keys = set().union(*(v.keys() for v in values))
             metrics.update({key: float(sum(v.get(key, 0.0) for v in values) / len(values)) for key in keys})
+    if robustness is None and "importance_top_iou" in metrics:
+        lift_gap = max(0.0, metrics.get("importance_lift_gap", 0.0))
+        top_iou = metrics.get("importance_top_iou", 0.0)
+        top_decoy = metrics.get("importance_top_decoy_fraction", 0.0)
+        metrics["evidence_score"] = metrics["macro_f1"] + 0.5 * top_iou + 0.2 * lift_gap - 0.1 * top_decoy
     return metrics
 
 
