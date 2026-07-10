@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import math
+
 import torch
 import torch.nn.functional as F
 
@@ -66,6 +68,46 @@ def oracle_localization_loss(
     return {"oracle_evidence": evidence_loss, "oracle_decoy": decoy_loss}
 
 
+def nuisance_intervention_losses(
+    model: torch.nn.Module,
+    x: torch.Tensor,
+    y: torch.Tensor,
+    logits: torch.Tensor,
+    span: int = 56,
+    amp: float = 2.5,
+    cycles: int = 11,
+) -> dict[str, torch.Tensor]:
+    """Inject a label-preserving high-frequency nuisance and discourage clock mass on it."""
+    b, _, t = x.shape
+    if span <= 0 or span >= t:
+        zero = logits.new_tensor(0.0)
+        return {"nuisance_consistency": zero, "nuisance_ce": zero, "nuisance_decoy": zero}
+    device = x.device
+    starts = torch.randint(8, max(9, t - span - 8), (b,), device=device)
+    mask = torch.zeros((b, t), device=device, dtype=x.dtype)
+    pos = torch.arange(span, device=device)
+    for i, start in enumerate(starts):
+        mask[i, start : start + span] = 1.0
+    phase = (pos.float() / max(1, span - 1)).view(1, 1, span)
+    window = torch.hann_window(span, periodic=False, device=device, dtype=x.dtype).view(1, 1, span)
+    wave = torch.sign(torch.sin(2 * math.pi * cycles * phase)).to(dtype=x.dtype) * window
+    noise = 0.15 * torch.randn((b, x.shape[1], span), device=device, dtype=x.dtype)
+    decoy = amp * (wave + noise)
+    x_aug = x.clone()
+    for i, start in enumerate(starts):
+        x_aug[i, :, start : start + span] = x_aug[i, :, start : start + span] + decoy[i]
+    aug = model(x_aug)
+    consistency = kl_divergence_from_logits(logits, aug["logits"])
+    ce = F.cross_entropy(aug["logits"], y)
+    velocity = aug.get("velocity")
+    if velocity is None:
+        decoy_mass = logits.new_tensor(0.0)
+    else:
+        prob = velocity / velocity.sum(dim=-1, keepdim=True).clamp_min(1e-8)
+        decoy_mass = (prob * mask).sum(dim=-1).mean()
+    return {"nuisance_consistency": consistency, "nuisance_ce": ce, "nuisance_decoy": decoy_mass}
+
+
 def total_loss(
     model: torch.nn.Module,
     batch: dict[str, torch.Tensor],
@@ -112,6 +154,26 @@ def total_loss(
         values["nec"] = float(ev["nec"].detach().cpu())
         values["suff_ce"] = float(ev["suff_ce"].detach().cpu())
         values["nec_ce"] = float(ev["nec_ce"].detach().cpu())
+    if (
+        coeffs.get("lambda_nuisance_consistency", 0) > 0
+        or coeffs.get("lambda_nuisance_ce", 0) > 0
+        or coeffs.get("lambda_nuisance_decoy", 0) > 0
+    ):
+        ni = nuisance_intervention_losses(
+            model,
+            batch["x"],
+            y,
+            logits,
+            span=int(coeffs.get("nuisance_span", 56)),
+            amp=float(coeffs.get("nuisance_amp", 2.5)),
+            cycles=int(coeffs.get("nuisance_cycles", 11)),
+        )
+        loss = loss + float(coeffs.get("lambda_nuisance_consistency", 0)) * ni["nuisance_consistency"]
+        loss = loss + float(coeffs.get("lambda_nuisance_ce", 0)) * ni["nuisance_ce"]
+        loss = loss + float(coeffs.get("lambda_nuisance_decoy", 0)) * ni["nuisance_decoy"]
+        values["nuisance_consistency"] = float(ni["nuisance_consistency"].detach().cpu())
+        values["nuisance_ce"] = float(ni["nuisance_ce"].detach().cpu())
+        values["nuisance_decoy"] = float(ni["nuisance_decoy"].detach().cpu())
     if (
         coeffs.get("lambda_oracle_evidence", 0) > 0
         or coeffs.get("lambda_oracle_decoy", 0) > 0

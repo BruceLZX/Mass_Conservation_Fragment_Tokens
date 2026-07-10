@@ -43,8 +43,12 @@ loss:
   lambda_nec: 0.05
   lambda_suff_ce: 0.5
   lambda_nec_ce: 0.2
-  lambda_oracle_evidence: 0.5
-  lambda_oracle_decoy: 1.0
+  lambda_nuisance_consistency: 0.2
+  lambda_nuisance_ce: 0.5
+  lambda_nuisance_decoy: 2.0
+  nuisance_span: 56
+  nuisance_amp: 2.5
+  nuisance_cycles: 11
   lambda_smooth: 0.02
   lambda_entropy: 0.001
   gamma: 0.6
