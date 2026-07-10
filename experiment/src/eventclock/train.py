@@ -78,7 +78,7 @@ def evaluate(model, loader, device, cfg: dict, robustness: dict | None = None) -
     metrics = classification_metrics(logits, y)
     for values in (overlap_values, evidence_values):
         if values:
-            keys = values[0].keys()
+            keys = set().union(*(v.keys() for v in values))
             metrics.update({key: float(sum(v.get(key, 0.0) for v in values) / len(values)) for key in keys})
     return metrics
 
