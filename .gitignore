@@ -7,10 +7,19 @@ env/
 .env
 
 /data/
+paper/
+experiment/data/
 experiment/outputs/
+experiment/hf_space/
 outputs/
 checkpoints/
 *.pt
 *.pth
 *.ckpt
 *.npz
+*.aux
+*.bbl
+*.blg
+*.log
+*.out
+*.pdf

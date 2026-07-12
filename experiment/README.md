@@ -1,126 +1,93 @@
-# EventClock Experiments
+# MCFT Experiments
 
-This folder contains the experiment scaffold for **Evidence-Calibrated EventClock**: a monotone event-time tokenizer trained with task loss plus sufficiency/necessity evidence objectives.
+This folder contains experiment code for **Mass-Conservation Fragment Tokens (MCFT)**.
 
-## What Is Covered
-
-- Synthetic sparse-motif sanity check with ground-truth evidence masks.
-- Synthetic decoy benchmark where label-independent high-complexity distractors test whether the clock follows task evidence instead of local complexity.
-- Main model: EventClock Transformer.
-- Baselines: CNN, fixed-patch Transformer, random token selection, and local-complexity token selection.
-- Reviewer-facing checks: token-budget sweeps, fixed-patch sweep, ablations for sufficiency/necessity, deletion/insertion evidence curves, clock-mask overlap, seed sweeps, and robustness perturbations.
-- Dataset entry points for PTB-XL, Sleep-EDF, WESAD, and PPG-DaLiA through a shared preprocessed NPZ format.
+MCFT scores a pair of MS/MS spectra by exposing sparse fragment correspondences as evidence tokens. The current reliable task is same-molecule spectrum-spectrum retrieval under hard negatives. Transformation discovery, exact-formula reranking, and cross-adduct reasoning are included only as diagnostic scripts and should not be treated as main claims unless later results improve.
 
 ## Environment
 
 ```bash
 python3 -m pip install -r experiment/requirements.txt
-```
-
-Use the source tree directly:
-
-```bash
 export PYTHONPATH=experiment/src
 ```
 
-## Smoke Test
+## Data
 
-```bash
-experiment/scripts/run_synthetic_smoke.sh
-```
-
-The smoke test writes:
-
-- `experiment/outputs/smoke_eventclock/best.pt`
-- `experiment/outputs/smoke_eventclock/metrics.json`
-
-## Main Synthetic Runs
-
-```bash
-PYTHONPATH=experiment/src python3 -m eventclock.train --config experiment/configs/synthetic_eventclock.yaml
-PYTHONPATH=experiment/src python3 -m eventclock.train --config experiment/configs/synthetic_fixed_patch.yaml
-PYTHONPATH=experiment/src python3 -m eventclock.run_grid --config experiment/configs/synthetic_grid.yaml
-PYTHONPATH=experiment/src python3 -m eventclock.run_grid --config experiment/configs/synthetic_baseline_grid.yaml
-PYTHONPATH=experiment/src python3 -m eventclock.run_grid --config experiment/configs/synthetic_token_baseline_grid.yaml
-PYTHONPATH=experiment/src python3 -m eventclock.run_grid --config experiment/configs/synthetic_cnn_grid.yaml
-```
-
-## Evidence-Decoy Benchmark
-
-Use this benchmark for the actual research claim. Classification alone is not enough here; the important question is whether event-time density avoids label-independent high-complexity decoys and concentrates on the discriminative motif.
-
-```bash
-PYTHONPATH=experiment/src python3 -m eventclock.train --config experiment/configs/synthetic_decoy_eventclock.yaml
-PYTHONPATH=experiment/src python3 -m eventclock.run_grid --config experiment/configs/synthetic_decoy_grid.yaml
-PYTHONPATH=experiment/src python3 -m eventclock.run_grid --config experiment/configs/synthetic_decoy_fixed_patch_grid.yaml
-PYTHONPATH=experiment/src python3 -m eventclock.run_grid --config experiment/configs/synthetic_decoy_token_baseline_grid.yaml
-```
-
-Primary evidence metrics:
-
-- `importance_evidence_mass`: fraction of clock density on the true evidence region.
-- `importance_decoy_mass`: fraction of clock density on the label-independent decoy.
-- `importance_evidence_lift`: evidence mass divided by evidence time fraction.
-- `importance_decoy_lift`: decoy mass divided by decoy time fraction.
-- `importance_evidence_minus_decoy`: should be positive for a useful evidence clock.
-- `importance_top_iou`: top-density positions against the motif mask.
-
-Summarize runs:
-
-```bash
-PYTHONPATH=experiment/src python3 -m eventclock.summarize_results experiment/outputs --out experiment/outputs/summary.csv
-```
-
-Visualize a learned clock:
-
-```bash
-PYTHONPATH=experiment/src python3 -m eventclock.visualize_clock \
-  --config experiment/configs/synthetic_eventclock.yaml \
-  --checkpoint experiment/outputs/synthetic_eventclock/best.pt \
-  --out experiment/outputs/synthetic_clock.png
-```
-
-## Preprocessed Dataset Format
-
-All real datasets use the same NPZ schema so the training code does not depend on fragile raw-data download layouts:
+The scripts expect locally parsed MassSpecGym TSV files under:
 
 ```text
-x: float32 array, shape [N, C, T] by default
-y: int64 array, shape [N]
-split: optional string array, values train/val/test
-evidence_mask: optional float32 array, shape [N, T]
+experiment/data/massspecgym/
 ```
 
-If `split` is absent, the loader uses deterministic 70/15/15 splits. For PTB-XL, Sleep-EDF, WESAD, and PPG-DaLiA, create the files referenced in:
+These data files are intentionally ignored by Git because they are generated/downloaded artifacts.
 
-- `experiment/configs/ptbxl_npz_eventclock.yaml`
-- `experiment/configs/sleep_edf_npz_eventclock.yaml`
-- `experiment/configs/wesad_npz_eventclock.yaml`
-- `experiment/configs/ppg_dalia_npz_eventclock.yaml`
-
-Validate a preprocessed file before training:
+Fetch rows through the Hugging Face dataset-server API:
 
 ```bash
-PYTHONPATH=experiment/src python3 -m eventclock.validate_npz data/processed/ptbxl_superdiag.npz
+PYTHONPATH=experiment/src python3 -m eventclock.fetch_massspecgym_rows \
+  --out experiment/data/massspecgym/MassSpecGym_rows_10k.tsv \
+  --limit 10000 \
+  --workers 1 \
+  --sleep-seconds 0.2
 ```
 
-Then run:
+## Main Retrieval Runs
+
+Random hard negatives:
 
 ```bash
-experiment/scripts/run_dataset.sh experiment/configs/ptbxl_npz_eventclock.yaml
+PYTHONPATH=experiment/src python3 -m eventclock.run_massspecgym_retrieval_smoke \
+  --tsv experiment/data/massspecgym/MassSpecGym_rows_10k.tsv \
+  --out-dir experiment/outputs/massspecgym_10k_retrieval_valtest_to_valtest_hard500_peakset_fair \
+  --num-queries 300 \
+  --num-negatives 500 \
+  --query-folds val,test \
+  --candidate-folds val,test \
+  --learned-pairs 12000 \
+  --seeds 0,1,2,3,4
 ```
 
-## Reviewer Checklist Mapping
+Closest-mass hard negatives:
 
-- “Is this just adaptive patching?” Compare `event_clock` against `complexity_token` and tuned `fixed_patch`.
-- “Does local density correspond to evidence?” Report deletion/insertion AUC and synthetic mask IoU.
-- “Is it merely a local-complexity detector?” Use the decoy benchmark and require evidence lift to exceed decoy lift.
-- “Is the fixed patch baseline tuned?” Use `synthetic_baseline_grid.yaml` and patch-size sweeps on each real dataset.
-- “Are gains robust?” Use `robustness_eval` blocks for noise, shift, masking, channel dropout, and amplitude scaling.
-- “Is the effect stable?” Use `seed` grid values and summarize mean/std across runs.
-- “Do evidence losses matter?” Use `loss.lambda_suff` and `loss.lambda_nec` ablations.
-- “Does token budget matter?” Sweep `model.k_tokens` and plot performance vs K.
+```bash
+PYTHONPATH=experiment/src python3 -m eventclock.run_massspecgym_retrieval_smoke \
+  --tsv experiment/data/massspecgym/MassSpecGym_rows_25k.tsv \
+  --out-dir experiment/outputs/massspecgym_25k_retrieval_valtest_to_valtest_closest20_hard500_peakset_fair \
+  --num-queries 300 \
+  --num-negatives 500 \
+  --query-folds val,test \
+  --candidate-folds val,test \
+  --negative-strategy closest \
+  --negative-window 20 \
+  --learned-pairs 20000 \
+  --seeds 0,1,2,3,4
+```
 
-## Notes
+## Evidence Audit
 
-The current repository does not include raw public datasets. The code intentionally fails with a clear `FileNotFoundError` if an NPZ path is missing, which keeps dataset licensing and storage separate from the experiment logic.
+```bash
+PYTHONPATH=experiment/src python3 -m eventclock.audit_mcft_evidence_examples \
+  --tsv experiment/data/massspecgym/MassSpecGym_rows_10k.tsv \
+  --out-dir experiment/outputs/massspecgym_10k_evidence_examples \
+  --num-queries 300 \
+  --num-negatives 500 \
+  --learned-pairs 12000
+```
+
+The audit exports query/candidate IDs, ranks, scores, and top matched fragment pairs.
+
+## Diagnostic Branches
+
+These scripts are retained for reproducibility and early stopping:
+
+- `eventclock.run_massspecgym_formula_conditioned_retrieval`: exact-formula/isomer reranking diagnostic. Current results are not strong enough for the main paper.
+- `eventclock.run_massspecgym_delta_retrieval`: formula-delta diagnostic. Current +O setting is shortcut-dominated by precursor mass.
+- `eventclock.run_mass_conservation_tokens`: synthetic conservation-token stress test.
+
+## Key Metrics
+
+- `hit@1`: whether the positive spectrum is ranked first.
+- `mrr`: reciprocal-rank average.
+- `modified_cosine_*`: zero/precursor-shift spectral matching baseline.
+- `mcft_zero_shift_*`: fixed zero-shift fragment conservation score.
+- `learned_mcft_pair_*`: learned sparse conservation-token scorer.
