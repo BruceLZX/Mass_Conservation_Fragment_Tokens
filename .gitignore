@@ -23,3 +23,26 @@ checkpoints/
 *.log
 *.out
 *.pdf
+
+# Local legacy exploration artifacts kept off GitHub.
+experiment/configs/
+experiment/scripts/
+experiment/src/eventclock/config.py
+experiment/src/eventclock/data/
+experiment/src/eventclock/evaluate.py
+experiment/src/eventclock/losses.py
+experiment/src/eventclock/metrics.py
+experiment/src/eventclock/models/
+experiment/src/eventclock/report_*.py
+experiment/src/eventclock/run_bct_*.py
+experiment/src/eventclock/run_candidate_diagnosis.py
+experiment/src/eventclock/run_ddxplus_candidate.py
+experiment/src/eventclock/run_grid.py
+experiment/src/eventclock/run_pathvqa_visual_reliance.py
+experiment/src/eventclock/run_tlwt_synthetic.py
+experiment/src/eventclock/seed.py
+experiment/src/eventclock/summarize_results.py
+experiment/src/eventclock/train.py
+experiment/src/eventclock/validate_npz.py
+experiment/src/eventclock/verify_*.py
+experiment/src/eventclock/visualize_clock.py
