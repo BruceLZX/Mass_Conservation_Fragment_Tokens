@@ -33,6 +33,8 @@ PYTHONPATH=experiment/src python3 -m eventclock.fetch_massspecgym_rows \
 
 ## Main Retrieval Runs
 
+Controlled low-capacity retrieval baseline:
+
 Random hard negatives:
 
 ```bash
@@ -63,6 +65,50 @@ PYTHONPATH=experiment/src python3 -m eventclock.run_massspecgym_retrieval_smoke 
   --seeds 0,1,2,3,4
 ```
 
+## Conservation-Token Transformer
+
+The transformer branch upgrades MCFT from a ridge scorer over aggregate features to a listwise neural scorer over sparse fragment-pair evidence tokens. Each query-candidate pair is represented as the top conserved fragment correspondences, and training uses cross-entropy over candidate lists.
+
+Small 10k random hard-negative run:
+
+```bash
+PYTHONPATH=experiment/src python3 -m eventclock.run_massspecgym_mcft_transformer \
+  --tsv experiment/data/massspecgym/MassSpecGym_rows_10k.tsv \
+  --out-dir experiment/outputs/massspecgym_10k_mcft_transformer_random_hard500 \
+  --train-queries 1200 \
+  --train-negatives 63 \
+  --eval-queries 300 \
+  --eval-negatives 500 \
+  --query-folds val,test \
+  --candidate-folds val,test \
+  --epochs 8 \
+  --batch-size 8 \
+  --max-tokens 96 \
+  --device cuda
+```
+
+Closest-mass stress test:
+
+```bash
+PYTHONPATH=experiment/src python3 -m eventclock.run_massspecgym_mcft_transformer \
+  --tsv experiment/data/massspecgym/MassSpecGym_rows_25k.tsv \
+  --out-dir experiment/outputs/massspecgym_25k_mcft_transformer_closest20_hard500 \
+  --train-queries 2400 \
+  --train-negatives 63 \
+  --eval-queries 300 \
+  --eval-negatives 500 \
+  --query-folds val,test \
+  --candidate-folds val,test \
+  --negative-strategy closest \
+  --negative-window 20 \
+  --epochs 10 \
+  --batch-size 8 \
+  --max-tokens 96 \
+  --device cuda
+```
+
+The script also reports modified cosine, fixed zero-shift MCFT, and ridge MCFT on the same evaluation queries.
+
 ## Evidence Audit
 
 ```bash
@@ -75,6 +121,24 @@ PYTHONPATH=experiment/src python3 -m eventclock.audit_mcft_evidence_examples \
 ```
 
 The audit exports query/candidate IDs, ranks, scores, and top matched fragment pairs.
+
+Counterfactual top-witness removal audit:
+
+```bash
+PYTHONPATH=experiment/src python3 -m eventclock.audit_mcft_witness_removal \
+  --tsv experiment/data/massspecgym/MassSpecGym_rows_10k.tsv \
+  --out-dir experiment/outputs/massspecgym_10k_witness_removal_audit \
+  --num-queries 300 \
+  --num-negatives 500 \
+  --query-folds val,test \
+  --candidate-folds val,test \
+  --learned-pairs 12000 \
+  --seed 0 \
+  --top-k 3 \
+  --random-trials 10
+```
+
+This audit deletes the top positive-candidate conservation witness peaks and compares the resulting rank and score drop against random peak deletion.
 
 ## Diagnostic Branches
 
