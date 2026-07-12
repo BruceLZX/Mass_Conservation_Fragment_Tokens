@@ -10,6 +10,7 @@ env/
 paper/
 experiment/data/
 experiment/outputs/
+experiment/results/
 experiment/hf_space/
 outputs/
 checkpoints/
