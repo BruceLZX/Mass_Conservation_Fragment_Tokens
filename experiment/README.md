@@ -65,6 +65,22 @@ PYTHONPATH=experiment/src python3 -m eventclock.run_massspecgym_retrieval_smoke 
   --seeds 0,1,2,3,4
 ```
 
+Overlap-hard fragment negatives:
+
+```bash
+PYTHONPATH=experiment/src python3 -m eventclock.run_massspecgym_retrieval_smoke \
+  --tsv experiment/data/massspecgym/MassSpecGym_rows_25k.tsv \
+  --out-dir experiment/outputs/massspecgym_25k_retrieval_valtest_to_valtest_overlap_hard500_peakset_fair \
+  --num-queries 300 \
+  --num-negatives 500 \
+  --query-folds val,test \
+  --candidate-folds val,test \
+  --negative-strategy overlap \
+  --negative-window 120 \
+  --learned-pairs 20000 \
+  --seeds 0,1,2
+```
+
 ## Conservation-Token Transformer
 
 The transformer branch upgrades MCFT from a ridge scorer over aggregate features to a listwise neural scorer over sparse fragment-pair evidence tokens. Each query-candidate pair is represented as the top conserved fragment correspondences, and training uses cross-entropy over candidate lists.
@@ -150,6 +166,8 @@ PYTHONPATH=experiment/src python3 -m eventclock.run_massspecgym_mlp_stats_contro
   --seeds 0,1,2
 ```
 
+The same control can be run on the overlap-hard lists by changing the output directory and using `--negative-strategy overlap --negative-window 120`.
+
 ## Raw-Token Sum-Pooling MLP Control
 
 This control uses the same raw MCFT token constructor as the transformer, then applies invariant sum/mean/max/min pooling before a one-hidden-layer MLP. By default it drops precursor-derived token fields, so it tests whether simple pooling over fragment-witness tokens can explain the learned scorer without using precursor-gap metadata.
@@ -173,7 +191,7 @@ PYTHONPATH=experiment/src python3 -m eventclock.run_massspecgym_sum_pool_mlp \
 
 ## Hard-Negative Diagnostics
 
-This audit compares random and closest-mass 500-negative lists on the same parsed 25k sample. It reports precursor-gap statistics and query-level maximum negative overlap under modified cosine and zero-shift MCFT.
+This audit compares random, closest-mass, and overlap-hard 500-negative lists on the same parsed 25k sample. It reports precursor-gap statistics and query-level maximum negative overlap under modified cosine and zero-shift MCFT.
 
 ```bash
 PYTHONPATH=experiment/src python3 -m eventclock.audit_massspecgym_hardness \
@@ -198,6 +216,19 @@ PYTHONPATH=experiment/src python3 -m eventclock.audit_massspecgym_hardness \
   --candidate-folds val,test \
   --negative-strategy closest \
   --negative-window 20 \
+  --seeds 0,1,2
+```
+
+```bash
+PYTHONPATH=experiment/src python3 -m eventclock.audit_massspecgym_hardness \
+  --tsv experiment/data/massspecgym/MassSpecGym_rows_25k.tsv \
+  --out-dir experiment/outputs/massspecgym_25k_hardness_audit_overlap_hard500 \
+  --num-queries 300 \
+  --num-negatives 500 \
+  --query-folds val,test \
+  --candidate-folds val,test \
+  --negative-strategy overlap \
+  --negative-window 120 \
   --seeds 0,1,2
 ```
 

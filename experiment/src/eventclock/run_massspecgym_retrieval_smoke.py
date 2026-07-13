@@ -255,6 +255,16 @@ def build_queries(
         if negative_strategy == "closest":
             negatives.sort(key=lambda row: abs(row["precursor_mz"] - negative_precursor))
             neg = negatives[:num_negatives]
+        elif negative_strategy == "overlap":
+            negatives.sort(
+                key=lambda row: (
+                    mcft_zero_shift_score(q, row),
+                    modified_cosine_score(q, row),
+                    -abs(row["precursor_mz"] - negative_precursor),
+                ),
+                reverse=True,
+            )
+            neg = negatives[:num_negatives]
         else:
             neg = list(rng.choice(negatives, size=num_negatives, replace=False))
         candidates = [pos] + neg
@@ -339,7 +349,7 @@ def main() -> None:
     parser.add_argument("--query-folds", default="all")
     parser.add_argument("--candidate-folds", default="all")
     parser.add_argument("--positive-adduct", choices=["any", "same", "different"], default="any")
-    parser.add_argument("--negative-strategy", choices=["random", "closest"], default="random")
+    parser.add_argument("--negative-strategy", choices=["random", "closest", "overlap"], default="random")
     parser.add_argument("--negative-window", type=float, default=120.0)
     parser.add_argument("--tolerance", type=float, default=0.03)
     parser.add_argument("--learned-pairs", type=int, default=0)

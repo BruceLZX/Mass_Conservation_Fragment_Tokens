@@ -183,7 +183,7 @@ def main() -> None:
     parser.add_argument("--query-folds", default="val,test")
     parser.add_argument("--candidate-folds", default="val,test")
     parser.add_argument("--positive-adduct", choices=["any", "same", "different"], default="any")
-    parser.add_argument("--negative-strategy", choices=["random", "closest"], default="closest")
+    parser.add_argument("--negative-strategy", choices=["random", "closest", "overlap"], default="closest")
     parser.add_argument("--negative-window", type=float, default=20.0)
     parser.add_argument("--tolerance", type=float, default=0.03)
     parser.add_argument("--width", type=int, default=96)

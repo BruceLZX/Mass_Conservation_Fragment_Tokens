@@ -38,6 +38,22 @@ PYTHONPATH=experiment/src python3 -m eventclock.run_massspecgym_retrieval_smoke 
   --seeds 0,1,2,3,4
 ```
 
+Overlap-hard stress test, where negatives are selected by conserved-fragment overlap:
+
+```bash
+PYTHONPATH=experiment/src python3 -m eventclock.run_massspecgym_retrieval_smoke \
+  --tsv experiment/data/massspecgym/MassSpecGym_rows_25k.tsv \
+  --out-dir experiment/outputs/massspecgym_25k_retrieval_valtest_to_valtest_overlap_hard500_peakset_fair \
+  --num-queries 300 \
+  --num-negatives 500 \
+  --query-folds val,test \
+  --candidate-folds val,test \
+  --negative-strategy overlap \
+  --negative-window 120 \
+  --learned-pairs 20000 \
+  --seeds 0,1,2
+```
+
 Fragment-witness audit:
 
 ```bash

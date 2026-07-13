@@ -42,7 +42,7 @@ These scripts reproduce the main claims in the paper:
 - `eventclock.run_massspecgym_listwise_linear`: listwise linear MCFT capacity control.
 - `eventclock.run_massspecgym_mlp_stats_control`: one-hidden-layer MLP control over the same aggregated MCFT statistics.
 - `eventclock.run_massspecgym_sum_pool_mlp`: raw-token sum-pooling MLP control with precursor-derived token fields disabled by default.
-- `eventclock.audit_massspecgym_hardness`: closest-mass versus random hard-negative diagnostics.
+- `eventclock.audit_massspecgym_hardness`: random, closest-mass, and overlap-hard hard-negative diagnostics.
 - `eventclock.audit_mcft_evidence_examples`: fragment-witness export.
 - `eventclock.audit_mcft_witness_removal`: counterfactual top-witness deletion audit.
 - `eventclock.audit_mcft_transformer_witness_removal`: same deletion audit for a saved MCFT-Transformer checkpoint.
@@ -112,7 +112,23 @@ PYTHONPATH=experiment/src python3 -m eventclock.run_massspecgym_sum_pool_mlp \
   --seeds 0,1,2
 ```
 
-The hard-negative diagnostic comparing random and closest-mass lists uses:
+The overlap-hard retrieval stress test uses:
+
+```bash
+PYTHONPATH=experiment/src python3 -m eventclock.run_massspecgym_retrieval_smoke \
+  --tsv experiment/data/massspecgym/MassSpecGym_rows_25k.tsv \
+  --out-dir experiment/outputs/massspecgym_25k_retrieval_valtest_to_valtest_overlap_hard500_peakset_fair \
+  --num-queries 300 \
+  --num-negatives 500 \
+  --query-folds val,test \
+  --candidate-folds val,test \
+  --negative-strategy overlap \
+  --negative-window 120 \
+  --learned-pairs 20000 \
+  --seeds 0,1,2
+```
+
+The hard-negative diagnostic comparing closest-mass and overlap-hard lists uses:
 
 ```bash
 PYTHONPATH=experiment/src python3 -m eventclock.audit_massspecgym_hardness \
@@ -124,6 +140,19 @@ PYTHONPATH=experiment/src python3 -m eventclock.audit_massspecgym_hardness \
   --candidate-folds val,test \
   --negative-strategy closest \
   --negative-window 20 \
+  --seeds 0,1,2
+```
+
+```bash
+PYTHONPATH=experiment/src python3 -m eventclock.audit_massspecgym_hardness \
+  --tsv experiment/data/massspecgym/MassSpecGym_rows_25k.tsv \
+  --out-dir experiment/outputs/massspecgym_25k_hardness_audit_overlap_hard500 \
+  --num-queries 300 \
+  --num-negatives 500 \
+  --query-folds val,test \
+  --candidate-folds val,test \
+  --negative-strategy overlap \
+  --negative-window 120 \
   --seeds 0,1,2
 ```
 
