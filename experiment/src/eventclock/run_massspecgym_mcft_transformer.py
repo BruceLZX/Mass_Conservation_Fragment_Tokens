@@ -47,6 +47,7 @@ def conservation_tokens(
     max_tokens: int,
     tolerances: tuple[float, ...],
     include_precursor_shift: bool,
+    drop_precursor_features: bool = False,
 ) -> tuple[np.ndarray, np.ndarray]:
     shifts = FIXED_SHIFTS
     precursor_shift = float(c["precursor_mz"] - q["precursor_mz"])
@@ -82,6 +83,9 @@ def conservation_tokens(
                     ],
                     dtype=np.float32,
                 )
+                if drop_precursor_features:
+                    token[8] = 0.0
+                    token[11] = 0.0
                 candidates.append((product - 0.05 * abs_residual, token))
     candidates.sort(key=lambda x: x[0], reverse=True)
 
@@ -100,11 +104,13 @@ class QueryListDataset(Dataset):
         max_tokens: int,
         tolerances: tuple[float, ...],
         include_precursor_shift: bool,
+        drop_precursor_features: bool,
     ) -> None:
         self.queries = queries
         self.max_tokens = max_tokens
         self.tolerances = tolerances
         self.include_precursor_shift = include_precursor_shift
+        self.drop_precursor_features = drop_precursor_features
 
     def __len__(self) -> int:
         return len(self.queries)
@@ -113,7 +119,14 @@ class QueryListDataset(Dataset):
         q, candidates, label = self.queries[idx]
         tokens, masks = [], []
         for c in candidates:
-            token, mask = conservation_tokens(q, c, self.max_tokens, self.tolerances, self.include_precursor_shift)
+            token, mask = conservation_tokens(
+                q,
+                c,
+                self.max_tokens,
+                self.tolerances,
+                self.include_precursor_shift,
+                self.drop_precursor_features,
+            )
             tokens.append(token)
             masks.append(mask)
         return {
@@ -183,7 +196,12 @@ def score_query(
             token_rows, mask_rows = [], []
             for c in chunk:
                 token, mask = conservation_tokens(
-                    q, c, args.max_tokens, args.tolerances_tuple, args.include_precursor_shift
+                    q,
+                    c,
+                    args.max_tokens,
+                    args.tolerances_tuple,
+                    args.include_precursor_shift,
+                    args.drop_precursor_features,
                 )
                 token_rows.append(token)
                 mask_rows.append(mask)
@@ -336,6 +354,7 @@ def main() -> None:
     parser.add_argument("--tolerance", type=float, default=0.03)
     parser.add_argument("--tolerances", default="0.01,0.03,0.08")
     parser.add_argument("--include-precursor-shift", action=argparse.BooleanOptionalAction, default=False)
+    parser.add_argument("--drop-precursor-features", action=argparse.BooleanOptionalAction, default=False)
     parser.add_argument("--max-tokens", type=int, default=96)
     parser.add_argument("--width", type=int, default=96)
     parser.add_argument("--depth", type=int, default=2)
@@ -394,13 +413,25 @@ def main() -> None:
     model = ConservationTokenTransformer(TOKEN_DIM, args.width, args.depth, args.heads, args.dropout).to(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
     train_loader = DataLoader(
-        QueryListDataset(train_split, args.max_tokens, args.tolerances_tuple, args.include_precursor_shift),
+        QueryListDataset(
+            train_split,
+            args.max_tokens,
+            args.tolerances_tuple,
+            args.include_precursor_shift,
+            args.drop_precursor_features,
+        ),
         batch_size=args.batch_size,
         shuffle=True,
         collate_fn=collate_query_lists,
     )
     val_loader = DataLoader(
-        QueryListDataset(val_split, args.max_tokens, args.tolerances_tuple, args.include_precursor_shift),
+        QueryListDataset(
+            val_split,
+            args.max_tokens,
+            args.tolerances_tuple,
+            args.include_precursor_shift,
+            args.drop_precursor_features,
+        ),
         batch_size=args.batch_size,
         shuffle=False,
         collate_fn=collate_query_lists,

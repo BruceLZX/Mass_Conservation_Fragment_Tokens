@@ -47,3 +47,19 @@ PYTHONPATH=experiment/src python3 -m eventclock.audit_mcft_evidence_examples \
 ```
 
 See `experiment/README.md` for the complete experiment map.
+
+Raw-token sum-pooling MLP control:
+
+```bash
+PYTHONPATH=experiment/src python3 -m eventclock.run_massspecgym_sum_pool_mlp \
+  --tsv experiment/data/massspecgym/MassSpecGym_rows_25k.tsv \
+  --out-dir experiment/outputs/massspecgym_25k_sum_pool_mlp_no_precursor_closest20_hard500 \
+  --train-queries 3000 \
+  --eval-queries 300 \
+  --train-negatives 63 \
+  --eval-negatives 500 \
+  --negative-strategy closest \
+  --negative-window 20 \
+  --epochs 80 \
+  --seeds 0,1,2
+```

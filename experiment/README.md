@@ -150,6 +150,27 @@ PYTHONPATH=experiment/src python3 -m eventclock.run_massspecgym_mlp_stats_contro
   --seeds 0,1,2
 ```
 
+## Raw-Token Sum-Pooling MLP Control
+
+This control uses the same raw MCFT token constructor as the transformer, then applies invariant sum/mean/max/min pooling before a one-hidden-layer MLP. By default it drops precursor-derived token fields, so it tests whether simple pooling over fragment-witness tokens can explain the learned scorer without using precursor-gap metadata.
+
+```bash
+PYTHONPATH=experiment/src python3 -m eventclock.run_massspecgym_sum_pool_mlp \
+  --tsv experiment/data/massspecgym/MassSpecGym_rows_25k.tsv \
+  --out-dir experiment/outputs/massspecgym_25k_sum_pool_mlp_no_precursor_closest20_hard500 \
+  --train-queries 3000 \
+  --train-negatives 63 \
+  --eval-queries 300 \
+  --eval-negatives 500 \
+  --query-folds val,test \
+  --candidate-folds val,test \
+  --negative-strategy closest \
+  --negative-window 20 \
+  --epochs 80 \
+  --width 96 \
+  --seeds 0,1,2
+```
+
 ## Hard-Negative Diagnostics
 
 This audit compares random and closest-mass 500-negative lists on the same parsed 25k sample. It reports precursor-gap statistics and query-level maximum negative overlap under modified cosine and zero-shift MCFT.
