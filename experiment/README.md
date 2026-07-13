@@ -109,6 +109,26 @@ PYTHONPATH=experiment/src python3 -m eventclock.run_massspecgym_mcft_transformer
 
 The script also reports modified cosine, fixed zero-shift MCFT, and ridge MCFT on the same evaluation queries.
 
+## Listwise Linear Control
+
+This control uses the same train-list construction as MCFT-Transformer but replaces token attention with a linear softmax scorer over aggregated conservation-token statistics.
+
+```bash
+PYTHONPATH=experiment/src python3 -m eventclock.run_massspecgym_listwise_linear \
+  --tsv experiment/data/massspecgym/MassSpecGym_rows_25k.tsv \
+  --out-dir experiment/outputs/massspecgym_25k_listwise_linear_mcft_closest20_hard500 \
+  --train-queries 3000 \
+  --train-negatives 63 \
+  --eval-queries 300 \
+  --eval-negatives 500 \
+  --query-folds val,test \
+  --candidate-folds val,test \
+  --negative-strategy closest \
+  --negative-window 20 \
+  --epochs 80 \
+  --seeds 0,1,2
+```
+
 ## Evidence Audit
 
 ```bash

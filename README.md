@@ -4,6 +4,8 @@ Experiment code for **Mass-Conservation Fragment Tokens (MCFT)**, a sparse fragm
 
 The repository intentionally keeps only runnable experiment code and lightweight documentation. Local paper drafts, parsed datasets, output metrics, and Hugging Face Space artifacts are excluded from GitHub.
 
+See `ARTIFACT.md` for the submission artifact manifest and the paper-critical script map.
+
 ## Environment
 
 ```bash

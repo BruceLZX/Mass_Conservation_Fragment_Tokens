@@ -41,6 +41,7 @@ experiment/src/eventclock/run_ddxplus_candidate.py
 experiment/src/eventclock/run_grid.py
 experiment/src/eventclock/run_pathvqa_visual_reliance.py
 experiment/src/eventclock/run_tlwt_synthetic.py
+!experiment/src/eventclock/run_massspecgym_listwise_linear.py
 experiment/src/eventclock/seed.py
 experiment/src/eventclock/summarize_results.py
 experiment/src/eventclock/train.py
