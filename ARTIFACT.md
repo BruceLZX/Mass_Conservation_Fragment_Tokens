@@ -44,6 +44,7 @@ These scripts reproduce the main claims in the paper:
 - `eventclock.audit_massspecgym_hardness`: closest-mass versus random hard-negative diagnostics.
 - `eventclock.audit_mcft_evidence_examples`: fragment-witness export.
 - `eventclock.audit_mcft_witness_removal`: counterfactual top-witness deletion audit.
+- `eventclock.audit_mcft_transformer_witness_removal`: same deletion audit for a saved MCFT-Transformer checkpoint.
 - `eventclock.run_mass_conservation_tokens`: synthetic conservation-token sanity test.
 
 Diagnostic scripts for formula-conditioned reranking and delta/cross-adduct probes are retained only to document negative or non-core results. They are not part of the main contribution claims.
@@ -104,4 +105,21 @@ PYTHONPATH=experiment/src python3 -m eventclock.audit_massspecgym_hardness \
   --negative-strategy closest \
   --negative-window 20 \
   --seeds 0,1,2
+```
+
+The transformer witness-removal audit for a saved checkpoint uses:
+
+```bash
+PYTHONPATH=experiment/src python3 -m eventclock.audit_mcft_transformer_witness_removal \
+  --checkpoint experiment/results/space_runs/mcft_transformer_20260712T120958Z/10k_random_hard500_seed0/best.pt \
+  --tsv experiment/data/massspecgym/MassSpecGym_rows_10k.tsv \
+  --out-dir experiment/outputs/massspecgym_10k_transformer_witness_removal_seed0 \
+  --eval-queries 300 \
+  --eval-negatives 500 \
+  --query-folds val,test \
+  --candidate-folds val,test \
+  --negative-strategy random \
+  --negative-window 120 \
+  --seed 0 \
+  --device cuda
 ```

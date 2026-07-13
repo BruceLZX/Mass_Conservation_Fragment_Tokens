@@ -211,6 +211,23 @@ PYTHONPATH=experiment/src python3 -m eventclock.audit_mcft_witness_removal \
 
 This audit deletes the top positive-candidate conservation witness peaks and compares the resulting rank and score drop against random peak deletion.
 
+Transformer checkpoint witness-removal audit:
+
+```bash
+PYTHONPATH=experiment/src python3 -m eventclock.audit_mcft_transformer_witness_removal \
+  --checkpoint experiment/results/space_runs/mcft_transformer_20260712T120958Z/10k_random_hard500_seed0/best.pt \
+  --tsv experiment/data/massspecgym/MassSpecGym_rows_10k.tsv \
+  --out-dir experiment/outputs/massspecgym_10k_transformer_witness_removal_seed0 \
+  --eval-queries 300 \
+  --eval-negatives 500 \
+  --query-folds val,test \
+  --candidate-folds val,test \
+  --negative-strategy random \
+  --negative-window 120 \
+  --seed 0 \
+  --device cuda
+```
+
 ## Diagnostic Branches
 
 These scripts are retained for reproducibility and early stopping:
