@@ -43,6 +43,7 @@ These scripts reproduce the main claims in the paper:
 - `eventclock.run_massspecgym_mlp_stats_control`: one-hidden-layer MLP control over the same aggregated MCFT statistics.
 - `eventclock.run_massspecgym_sum_pool_mlp`: raw-token sum-pooling MLP control with precursor-derived token fields disabled by default.
 - `eventclock.audit_massspecgym_hardness`: random, closest-mass, and overlap-hard hard-negative diagnostics.
+- `eventclock.plot_massspecgym_hardness_distributions`: query-level negative-pool hardness distributions and figure generation.
 - `eventclock.audit_mcft_evidence_examples`: fragment-witness export.
 - `eventclock.audit_mcft_witness_removal`: counterfactual top-witness deletion audit.
 - `eventclock.audit_mcft_transformer_witness_removal`: same deletion audit for a saved MCFT-Transformer checkpoint.
@@ -153,6 +154,19 @@ PYTHONPATH=experiment/src python3 -m eventclock.audit_massspecgym_hardness \
   --candidate-folds val,test \
   --negative-strategy overlap \
   --negative-window 120 \
+  --seeds 0,1,2
+```
+
+The negative-pool hardness distribution figure uses:
+
+```bash
+PYTHONPATH=experiment/src python3 -m eventclock.plot_massspecgym_hardness_distributions \
+  --tsv experiment/data/massspecgym/MassSpecGym_rows_25k.tsv \
+  --out-dir experiment/outputs/massspecgym_25k_hardness_distributions \
+  --num-queries 300 \
+  --num-negatives 500 \
+  --query-folds val,test \
+  --candidate-folds val,test \
   --seeds 0,1,2
 ```
 

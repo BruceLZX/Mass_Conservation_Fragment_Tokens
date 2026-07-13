@@ -54,6 +54,19 @@ PYTHONPATH=experiment/src python3 -m eventclock.run_massspecgym_retrieval_smoke 
   --seeds 0,1,2
 ```
 
+Negative-pool hardness distribution audit:
+
+```bash
+PYTHONPATH=experiment/src python3 -m eventclock.plot_massspecgym_hardness_distributions \
+  --tsv experiment/data/massspecgym/MassSpecGym_rows_25k.tsv \
+  --out-dir experiment/outputs/massspecgym_25k_hardness_distributions \
+  --num-queries 300 \
+  --num-negatives 500 \
+  --query-folds val,test \
+  --candidate-folds val,test \
+  --seeds 0,1,2
+```
+
 Fragment-witness audit:
 
 ```bash

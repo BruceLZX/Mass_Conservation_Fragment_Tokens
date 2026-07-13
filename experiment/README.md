@@ -232,6 +232,19 @@ PYTHONPATH=experiment/src python3 -m eventclock.audit_massspecgym_hardness \
   --seeds 0,1,2
 ```
 
+Distribution plot for the three negative-pool strategies:
+
+```bash
+PYTHONPATH=experiment/src python3 -m eventclock.plot_massspecgym_hardness_distributions \
+  --tsv experiment/data/massspecgym/MassSpecGym_rows_25k.tsv \
+  --out-dir experiment/outputs/massspecgym_25k_hardness_distributions \
+  --num-queries 300 \
+  --num-negatives 500 \
+  --query-folds val,test \
+  --candidate-folds val,test \
+  --seeds 0,1,2
+```
+
 ## Evidence Audit
 
 ```bash
