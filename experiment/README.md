@@ -129,6 +129,57 @@ PYTHONPATH=experiment/src python3 -m eventclock.run_massspecgym_listwise_linear 
   --seeds 0,1,2
 ```
 
+## MLP Statistics Control
+
+This control uses the same aggregated MCFT statistics as the listwise linear control but replaces the linear scorer with a one-hidden-layer MLP. It tests whether the transformer gain can be explained by generic nonlinear capacity over pooled statistics.
+
+```bash
+PYTHONPATH=experiment/src python3 -m eventclock.run_massspecgym_mlp_stats_control \
+  --tsv experiment/data/massspecgym/MassSpecGym_rows_25k.tsv \
+  --out-dir experiment/outputs/massspecgym_25k_mlp_stats_mcft_closest20_hard500 \
+  --train-queries 3000 \
+  --train-negatives 63 \
+  --eval-queries 300 \
+  --eval-negatives 500 \
+  --query-folds val,test \
+  --candidate-folds val,test \
+  --negative-strategy closest \
+  --negative-window 20 \
+  --epochs 80 \
+  --width 96 \
+  --seeds 0,1,2
+```
+
+## Hard-Negative Diagnostics
+
+This audit compares random and closest-mass 500-negative lists on the same parsed 25k sample. It reports precursor-gap statistics and query-level maximum negative overlap under modified cosine and zero-shift MCFT.
+
+```bash
+PYTHONPATH=experiment/src python3 -m eventclock.audit_massspecgym_hardness \
+  --tsv experiment/data/massspecgym/MassSpecGym_rows_25k.tsv \
+  --out-dir experiment/outputs/massspecgym_25k_hardness_audit_random_hard500 \
+  --num-queries 300 \
+  --num-negatives 500 \
+  --query-folds val,test \
+  --candidate-folds val,test \
+  --negative-strategy random \
+  --negative-window 120 \
+  --seeds 0,1,2
+```
+
+```bash
+PYTHONPATH=experiment/src python3 -m eventclock.audit_massspecgym_hardness \
+  --tsv experiment/data/massspecgym/MassSpecGym_rows_25k.tsv \
+  --out-dir experiment/outputs/massspecgym_25k_hardness_audit_closest20_hard500 \
+  --num-queries 300 \
+  --num-negatives 500 \
+  --query-folds val,test \
+  --candidate-folds val,test \
+  --negative-strategy closest \
+  --negative-window 20 \
+  --seeds 0,1,2
+```
+
 ## Evidence Audit
 
 ```bash

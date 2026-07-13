@@ -40,6 +40,8 @@ These scripts reproduce the main claims in the paper:
 - `eventclock.run_massspecgym_retrieval_smoke`: modified cosine, fixed MCFT, and ridge MCFT retrieval baselines.
 - `eventclock.run_massspecgym_mcft_transformer`: MCFT-Transformer listwise retrieval experiments.
 - `eventclock.run_massspecgym_listwise_linear`: listwise linear MCFT capacity control.
+- `eventclock.run_massspecgym_mlp_stats_control`: one-hidden-layer MLP control over the same aggregated MCFT statistics.
+- `eventclock.audit_massspecgym_hardness`: closest-mass versus random hard-negative diagnostics.
 - `eventclock.audit_mcft_evidence_examples`: fragment-witness export.
 - `eventclock.audit_mcft_witness_removal`: counterfactual top-witness deletion audit.
 - `eventclock.run_mass_conservation_tokens`: synthetic conservation-token sanity test.
@@ -70,3 +72,36 @@ PYTHONPATH=experiment/src python3 -m eventclock.run_massspecgym_mcft_transformer
   --device cuda
 ```
 
+The pooled-statistic MLP capacity control uses:
+
+```bash
+PYTHONPATH=experiment/src python3 -m eventclock.run_massspecgym_mlp_stats_control \
+  --tsv experiment/data/massspecgym/MassSpecGym_rows_25k.tsv \
+  --out-dir experiment/outputs/massspecgym_25k_mlp_stats_mcft_closest20_hard500 \
+  --train-queries 3000 \
+  --train-negatives 63 \
+  --eval-queries 300 \
+  --eval-negatives 500 \
+  --query-folds val,test \
+  --candidate-folds val,test \
+  --negative-strategy closest \
+  --negative-window 20 \
+  --epochs 80 \
+  --width 96 \
+  --seeds 0,1,2
+```
+
+The hard-negative diagnostic comparing random and closest-mass lists uses:
+
+```bash
+PYTHONPATH=experiment/src python3 -m eventclock.audit_massspecgym_hardness \
+  --tsv experiment/data/massspecgym/MassSpecGym_rows_25k.tsv \
+  --out-dir experiment/outputs/massspecgym_25k_hardness_audit_closest20_hard500 \
+  --num-queries 300 \
+  --num-negatives 500 \
+  --query-folds val,test \
+  --candidate-folds val,test \
+  --negative-strategy closest \
+  --negative-window 20 \
+  --seeds 0,1,2
+```
